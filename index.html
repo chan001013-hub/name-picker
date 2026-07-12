@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>이름 뽑기 룰렛</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 55%, #f093fb 100%);
+    font-family: "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    padding: 24px;
+  }
+
+  .app {
+    background: #fff;
+    border-radius: 24px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.28);
+    padding: 32px 28px 34px;
+    max-width: 460px;
+    width: 100%;
+    text-align: center;
+  }
+
+  h1 { margin: 0 0 4px; font-size: 26px; color: #333; }
+  .subtitle { margin: 0 0 22px; color: #999; font-size: 14px; }
+
+  .input-row { display: flex; gap: 8px; margin-bottom: 14px; }
+  #nameInput {
+    flex: 1;
+    padding: 11px 14px;
+    border: 2px solid #eee;
+    border-radius: 12px;
+    font-size: 15px;
+    outline: none;
+    transition: border-color .2s;
+    min-width: 0;
+  }
+  #nameInput:focus { border-color: #764ba2; }
+  #addBtn {
+    padding: 0 20px;
+    border: none;
+    border-radius: 12px;
+    background: #764ba2;
+    color: #fff;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  #addBtn:hover { background: #663d94; }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 22px;
+    min-height: 20px;
+    justify-content: center;
+  }
+  .chip {
+    background: #f3eefc;
+    color: #5b3a94;
+    padding: 6px 8px 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+  }
+  .chip button {
+    border: none;
+    background: #d9c8f5;
+    color: #5b3a94;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .chip button:hover { background: #c3a8ef; }
+  .empty-hint { color: #bbb; font-size: 13px; padding: 4px 0; }
+
+  .wheel-wrap {
+    position: relative;
+    width: min(320px, 78vw);
+    aspect-ratio: 1 / 1;
+    margin: 0 auto 24px;
+  }
+  canvas#wheel {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    box-shadow: 0 10px 26px rgba(0,0,0,.22);
+    display: block;
+  }
+  .pointer {
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 14px solid transparent;
+    border-right: 14px solid transparent;
+    border-top: 24px solid #ff4757;
+    z-index: 3;
+    filter: drop-shadow(0 2px 3px rgba(0,0,0,.3));
+  }
+  .center-btn {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%);
+    width: 25%;
+    height: 25%;
+    min-width: 64px;
+    min-height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
+    color: #fff;
+    font-weight: 800;
+    font-size: 15px;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 6px 16px rgba(255,107,107,.5), inset 0 0 0 6px #fff;
+    z-index: 2;
+    user-select: none;
+    transition: transform .15s, opacity .15s;
+  }
+  .center-btn:hover { transform: translate(-50%,-50%) scale(1.06); }
+  .center-btn:active { transform: translate(-50%,-50%) scale(0.95); }
+  .center-btn.disabled { opacity: .45; cursor: not-allowed; pointer-events: none; }
+  .center-btn.spinning { pointer-events: none; }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    color: #777;
+  }
+  .switch-label { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+  .switch-label input { cursor: pointer; }
+  .ghost-btn {
+    border: 1.5px solid #ddd;
+    background: #fff;
+    color: #888;
+    padding: 7px 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: border-color .15s, color .15s;
+  }
+  .ghost-btn:hover { border-color: #bbb; color: #555; }
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    padding: 20px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    position: relative;
+    background: #fff;
+    border-radius: 20px;
+    padding: 40px 32px;
+    text-align: center;
+    max-width: 320px;
+    width: 100%;
+    overflow: hidden;
+    animation: pop .35s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes pop {
+    from { transform: scale(.7); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .modal-label { margin: 0 0 8px; color: #aaa; font-weight: 700; letter-spacing: 2px; font-size: 13px; }
+  #winnerName { margin: 0 0 26px; font-size: 30px; color: #333; word-break: break-all; }
+  #closeModal {
+    border: none;
+    background: #764ba2;
+    color: #fff;
+    padding: 11px 30px;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  #closeModal:hover { background: #663d94; }
+  .confetti-wrap { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  .confetti-piece {
+    position: absolute;
+    top: -10px;
+    width: 8px;
+    height: 8px;
+    opacity: .9;
+    animation-name: confetti-fall;
+    animation-timing-function: ease-in;
+    animation-fill-mode: forwards;
+  }
+  @keyframes confetti-fall {
+    to { transform: translateY(360px) rotate(360deg); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="app">
+    <h1>🎯 이름 뽑기 룰렛</h1>
+    <p class="subtitle">이름을 추가하고 룰렛을 돌려보세요!</p>
+
+    <div class="input-row">
+      <input type="text" id="nameInput" placeholder="이름을 입력하고 Enter" maxlength="20">
+      <button id="addBtn">추가</button>
+    </div>
+
+    <div class="chips" id="chips"></div>
+
+    <div class="wheel-wrap">
+      <div class="pointer"></div>
+      <canvas id="wheel" width="400" height="400"></canvas>
+      <div class="center-btn disabled" id="spinBtn">SPIN</div>
+    </div>
+
+    <div class="controls">
+      <label class="switch-label"><input type="checkbox" id="excludeWinner"> 당첨자 제외하고 뽑기</label>
+      <button id="resetBtn" class="ghost-btn">초기화</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <div class="confetti-wrap" id="confettiWrap"></div>
+      <p class="modal-label">🎉 당첨 🎉</p>
+      <h2 id="winnerName"></h2>
+      <button id="closeModal">닫기</button>
+    </div>
+  </div>
+
+<script>
+  const COLORS = ['#FF6B6B','#FFD93D','#6BCB77','#4D96FF','#B983FF','#FF9F45','#00C2CB','#FF6FB5','#845EC2','#4E9F3D'];
+
+  const nameInput = document.getElementById('nameInput');
+  const addBtn = document.getElementById('addBtn');
+  const chipsEl = document.getElementById('chips');
+  const canvas = document.getElementById('wheel');
+  const ctx = canvas.getContext('2d');
+  const spinBtn = document.getElementById('spinBtn');
+  const excludeWinner = document.getElementById('excludeWinner');
+  const resetBtn = document.getElementById('resetBtn');
+  const modalOverlay = document.getElementById('modalOverlay');
+  const winnerNameEl = document.getElementById('winnerName');
+  const closeModalBtn = document.getElementById('closeModal');
+  const confettiWrap = document.getElementById('confettiWrap');
+
+  let names = [];
+  let isSpinning = false;
+  let currentRotation = 0;
+
+  function addName() {
+    const value = nameInput.value.trim();
+    if (!value) return;
+    names.push(value);
+    nameInput.value = '';
+    renderAll();
+    nameInput.focus();
+  }
+
+  function removeName(index) {
+    names.splice(index, 1);
+    renderAll();
+  }
+
+  function renderChips() {
+    chipsEl.innerHTML = '';
+    if (names.length === 0) {
+      chipsEl.innerHTML = '<div class="empty-hint">아직 추가된 이름이 없어요</div>';
+      return;
+    }
+    names.forEach((name, i) => {
+      const chip = document.createElement('div');
+      chip.className = 'chip';
+      chip.innerHTML = `<span>${escapeHtml(name)}</span>`;
+      const removeBtn = document.createElement('button');
+      removeBtn.textContent = '×';
+      removeBtn.addEventListener('click', () => removeName(i));
+      chip.appendChild(removeBtn);
+      chipsEl.appendChild(chip);
+    });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function getContrastColor(hex) {
+    hex = hex.replace('#', '');
+    const r = parseInt(hex.substr(0,2),16);
+    const g = parseInt(hex.substr(2,2),16);
+    const b = parseInt(hex.substr(4,2),16);
+    const yiq = (r*299 + g*587 + b*114) / 1000;
+    return yiq >= 150 ? '#2b2b2b' : '#ffffff';
+  }
+
+  function fitText(context, text, maxWidth) {
+    if (context.measureText(text).width <= maxWidth) return text;
+    let t = text;
+    while (t.length > 0 && context.measureText(t + '…').width > maxWidth) {
+      t = t.slice(0, -1);
+    }
+    return t + '…';
+  }
+
+  function drawWheel() {
+    const cx = 200, cy = 200, r = 190;
+    ctx.clearRect(0, 0, 400, 400);
+
+    if (names.length === 0) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fillStyle = '#f0eef5';
+      ctx.fill();
+      ctx.fillStyle = '#bbb';
+      ctx.font = 'bold 16px "Segoe UI", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('이름을 추가해주세요', cx, cy);
+      return;
+    }
+
+    const n = names.length;
+    const anglePer = (Math.PI * 2) / n;
+    const fontSize = n <= 6 ? 18 : n <= 10 ? 15 : n <= 16 ? 12 : 10;
+
+    names.forEach((name, i) => {
+      const start = i * anglePer;
+      const end = start + anglePer;
+      const color = COLORS[i % COLORS.length];
+
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, r, start, end);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(start + anglePer / 2);
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = getContrastColor(color);
+      ctx.font = `bold ${fontSize}px "Segoe UI", "Malgun Gothic", sans-serif`;
+      const label = fitText(ctx, name, r - 45);
+      ctx.fillText(label, r - 20, 0);
+      ctx.restore();
+    });
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#fff';
+    ctx.stroke();
+  }
+
+  function updateSpinAvailability() {
+    if (names.length < 2) {
+      spinBtn.classList.add('disabled');
+    } else {
+      spinBtn.classList.remove('disabled');
+    }
+  }
+
+  function renderAll() {
+    renderChips();
+    drawWheel();
+    updateSpinAvailability();
+  }
+
+  function spawnConfetti() {
+    confettiWrap.innerHTML = '';
+    const colors = COLORS;
+    for (let i = 0; i < 40; i++) {
+      const piece = document.createElement('div');
+      piece.className = 'confetti-piece';
+      piece.style.left = Math.random() * 100 + '%';
+      piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+      piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+      piece.style.animationDuration = (1.8 + Math.random() * 1.2) + 's';
+      piece.style.animationDelay = (Math.random() * 0.4) + 's';
+      confettiWrap.appendChild(piece);
+    }
+  }
+
+  function showResult(winner, index) {
+    winnerNameEl.textContent = winner;
+    modalOverlay.classList.add('show');
+    spawnConfetti();
+
+    if (excludeWinner.checked) {
+      names.splice(index, 1);
+    }
+  }
+
+  function spin() {
+    if (isSpinning) return;
+    if (names.length < 2) return;
+    isSpinning = true;
+    spinBtn.classList.add('spinning');
+
+    const extraSpins = 6 + Math.floor(Math.random() * 4);
+    const randomStopAngle = Math.random() * 360;
+    currentRotation += extraSpins * 360 + randomStopAngle;
+
+    canvas.style.transition = 'transform 4.2s cubic-bezier(0.12, 0.67, 0.1, 1)';
+    canvas.style.transform = `rotate(${currentRotation}deg)`;
+  }
+
+  canvas.addEventListener('transitionend', (e) => {
+    if (e.propertyName !== 'transform' || !isSpinning) return;
+    isSpinning = false;
+    spinBtn.classList.remove('spinning');
+
+    const n = names.length;
+    const anglePerDeg = 360 / n;
+    const normalized = ((currentRotation % 360) + 360) % 360;
+    const theta = ((270 - normalized) % 360 + 360) % 360;
+    let index = Math.floor(theta / anglePerDeg);
+    index = index % n;
+
+    showResult(names[index], index);
+  });
+
+  addBtn.addEventListener('click', addName);
+  nameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addName();
+  });
+  spinBtn.addEventListener('click', spin);
+  closeModalBtn.addEventListener('click', () => {
+    modalOverlay.classList.remove('show');
+    renderAll();
+  });
+  resetBtn.addEventListener('click', () => {
+    names = [];
+    currentRotation = 0;
+    canvas.style.transition = 'none';
+    canvas.style.transform = 'rotate(0deg)';
+    renderAll();
+  });
+
+  renderAll();
+</script>
+</body>
+</html>
